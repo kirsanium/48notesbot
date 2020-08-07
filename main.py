@@ -1,20 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-# This program is dedicated to the public domain under the CC0 license.
-
-"""
-Simple Bot to reply to Telegram messages.
-
-First, a few handler functions are defined. Then, those functions are passed to
-the Dispatcher and registered at their respective places.
-Then, the bot is started and runs until we press Ctrl-C on the command line.
-
-Usage:
-Basic Echobot example, repeats messages.
-Press Ctrl-C on the command line or send a signal to the process to stop the
-bot.
-"""
-
 import logging
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
@@ -80,7 +63,7 @@ def start_delete(update, context):
     try:
         notes = context.bot_data['notes']
         context.bot.send_message(chat_id=update.effective_chat.id, text=_build_notes_list(notes))
-        context.bot.send_message(chat_id=update.effective_chat.id, text="Введите номер заметки")
+        context.bot.send_message(chat_id=update.effective_chat.id, text="Введите номер заметки, либо `0` для отмены")
         return States.DELETE
     except KeyError:
         return _to_main_menu(update, context, 'Заметок нет')
@@ -116,13 +99,7 @@ def _to_main_menu(update, context, text):
     return States.MAIN_MENU
 
 def main():
-    """Start the bot."""
-    # Create the Updater and pass it your bot's token.
-    # Make sure to set use_context=True to use the new context based callbacks
-    # Post version 12 this will no longer be necessary
     updater = Updater(TOKEN, use_context=True)
-
-    # Get the dispatcher to register handlers
     dp = updater.dispatcher
 
     conv_handler = ConversationHandler(
@@ -153,12 +130,7 @@ def main():
 
     dp.add_handler(conv_handler)
 
-    # Start the Bot
     updater.start_polling()
-
-    # Run the bot until you press Ctrl-C or the process receives SIGINT,
-    # SIGTERM or SIGABRT. This should be used most of the time, since
-    # start_polling() is non-blocking and will stop the bot gracefully.
     updater.idle()
 
 
