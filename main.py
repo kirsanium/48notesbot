@@ -63,33 +63,53 @@ def add_name(update, context):
     return States.ADD_CONTENT
 
 def add_content(update, context):
-    if context.bot_data.get('notes') == None:
+    if context.bot_data.get('notes') is None:
         context.bot_data['notes'] = {}
     context.bot_data['notes'][str(len(context.bot_data['notes'])+1)] = {context.user_data['current_note_name']: update.message.text}
     return _to_main_menu(update, context, 'Заметка добавлена')
 
 def list_notes(update, context):
-    notes = context.bot_data.get('notes')
-    if not notes:
+    try:
+        notes = context.bot_data['notes']
+        notes_list = _build_notes_list(notes)
+        return _to_main_menu(update, context, notes_list)
+    except KeyError:
         return _to_main_menu(update, context, 'Заметок нет')
-    
+
+def start_delete(update, context):
+    try:
+        notes = context.bot_data['notes']
+        context.bot.send_message(chat_id=update.effective_chat.id, text=_build_notes_list(notes))
+        context.bot.send_message(chat_id=update.effective_chat.id, text="Введите номер заметки")
+        return States.DELETE
+    except KeyError:
+        return _to_main_menu(update, context, 'Заметок нет')
+
+def delete_note(update, context):
+    note_number = update.message.text
+    if note_number == "0":
+        return _to_main_menu(update, context, "Удаление отменено.")
+    try:
+        del context.bot_data['notes'][note_number]
+        return _to_main_menu(update, context, 'Заметка удалена.')
+    except KeyError:
+        return _to_main_menu(update, context, 'Такой заметки нет!')
+
+def _build_notes_list(notes):
     notes_list = ""
     for i in range(1, len(notes.items()) + 1):
         notes_list += f"{i}. {list(notes[str(i)].keys())[0]}\n"
-    
-    return _to_main_menu(update, context, notes_list)
+
+    if notes_list == "":
+        notes_list = "Заметок нет"
+    return notes_list
 
 def show_note(update, context):
-    notes = context.bot_data.get('notes')
-    if not notes:
+    try:
+        note = list(context.bot_data['notes'][update.message.text].values())[0]
+        return _to_main_menu(update, context, note)
+    except KeyError:
         return _to_main_menu(update, context, 'Такой заметки нет!')
-
-    note_entry = notes.get(update.message.text)
-    if not note_entry:
-        return _to_main_menu(update, context, 'Такой заметки нет!')
-
-    note = list(note_entry.values())[0]
-    return _to_main_menu(update, context, note)
 
 def _to_main_menu(update, context, text):
     context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=MAIN_MENU)
@@ -112,6 +132,7 @@ def main():
             States.MAIN_MENU: [
                 CallbackQueryHandler(start_add, pattern=ADD_COMMAND),
                 CallbackQueryHandler(list_notes, pattern=LIST_COMMAND),
+                CallbackQueryHandler(start_delete, pattern=DELETE_COMMAND),
                 MessageHandler(Filters.regex(r"(\d)*"), show_note)
             ],
             States.ADD_NAME: [
@@ -119,6 +140,9 @@ def main():
             ],
             States.ADD_CONTENT: [
                 MessageHandler(Filters.text, add_content)
+            ],
+            States.DELETE: [
+                MessageHandler(Filters.regex(r"(\d)*"), delete_note)
             ]
         },
 
