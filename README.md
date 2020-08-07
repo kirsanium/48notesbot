@@ -1,2 +1,2 @@
 # 48notesbot
-A bot that keeps your notes.
+A bot that keeps ~~y~~our notes.
