@@ -69,14 +69,22 @@ def start_delete(update, context):
         return _to_main_menu(update, context, 'Заметок нет')
 
 def delete_note(update, context):
-    note_number = update.message.text
-    if note_number == "0":
+    key_to_remove = update.message.text
+    if key_to_remove == "0":
         return _to_main_menu(update, context, "Удаление отменено.")
     try:
-        del context.bot_data['notes'][note_number]
+        del context.bot_data['notes'][key_to_remove]
+        fix_notes_dict(context, key_to_remove)
         return _to_main_menu(update, context, 'Заметка удалена.')
     except KeyError:
         return _to_main_menu(update, context, 'Такой заметки нет!')
+
+def fix_notes_dict(context, removed_key):
+    notes = context.bot_data['notes']
+    upper_bound = len(notes.items()) + 1
+    for i in range(int(removed_key), upper_bound):
+        context.bot_data['notes'][str(i)] = context.bot_data['notes'][str(i+1)]
+    del context.bot_data['notes'][str(upper_bound)]
 
 def _build_notes_list(notes):
     notes_list = ""
