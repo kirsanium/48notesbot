@@ -9,9 +9,15 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 
 logger = logging.getLogger(__name__)
 
-TOKEN = '1281871705:AAF6UCdQ0h-j_JI-mvljMsFJzPzmrVEocsM'
-NAME = "pacific-inlet-22620"
-PORT = int(os.environ.get('PORT', 5000))
+# dotenv
+from dotenv import load_dotenv
+load_dotenv()
+
+# env
+WEB_TOKEN = os.getenv('WEB_TOKEN')
+PORT = int(os.getenv('PORT', 5000))
+WEBHOOK_URL = os.getenv('WEBHOOK_URL').strip('/')
+ENVIRONMENT = os.getenv('ENVIRONMENT')
 
 ADD_COMMAND = "/add"
 LIST_COMMAND = "/list"
@@ -114,7 +120,7 @@ def _to_main_menu(update, context, text):
     return States.MAIN_MENU
 
 def main():
-    updater = Updater(TOKEN, use_context=True)
+    updater = Updater(WEB_TOKEN, use_context=True)
     dp = updater.dispatcher
 
     conv_handler = ConversationHandler(
@@ -145,11 +151,15 @@ def main():
 
     dp.add_handler(conv_handler)
 
-    # updater.start_webhook(listen="0.0.0.0",
-    #                       port=int(PORT),
-    #                       url_path=TOKEN)
-    # updater.bot.setWebhook(f"https://{NAME}.herokuapp.com/{TOKEN}")
-    updater.start_polling()
+    if ENVIRONMENT == 'dev':
+        updater.start_polling()
+    elif ENVIRONMENT == 'prod':
+        updater.start_webhook(listen="0.0.0.0",
+                            port=int(PORT),
+                            url_path=WEB_TOKEN)
+        updater.bot.setWebhook(f"{WEBHOOK_URL}/{WEB_TOKEN}")
+    else:
+        updater.start_polling()
 
     updater.idle()
 
