@@ -17,7 +17,7 @@ load_dotenv()
 WEB_TOKEN = os.getenv('WEB_TOKEN')
 PORT = int(os.getenv('PORT', 5000))
 WEBHOOK_URL = os.getenv('WEBHOOK_URL').strip('/')
-ENVIRONMENT = os.getenv('ENVIRONMENT')
+ENVIRONMENT = os.getenv('ENVIRONMENT', 'dev')
 
 ADD_COMMAND = "/add"
 LIST_COMMAND = "/list"
