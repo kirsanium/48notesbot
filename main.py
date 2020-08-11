@@ -10,6 +10,8 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 TOKEN = '1281871705:AAF6UCdQ0h-j_JI-mvljMsFJzPzmrVEocsM'
+NAME = "pacific-inlet-22620"
+PORT = os.environ.get('PORT')
 
 ADD_COMMAND = "/add"
 LIST_COMMAND = "/list"
@@ -140,7 +142,10 @@ def main():
 
     dp.add_handler(conv_handler)
 
-    updater.start_polling()
+    updater.start_webhook(listen="0.0.0.0",
+                          port=int(PORT),
+                          url_path=TOKEN)
+    updater.bot.setWebhook("https://{}.herokuapp.com/{}".format(NAME, TOKEN))
     updater.idle()
 
 
