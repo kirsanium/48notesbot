@@ -31,12 +31,12 @@ class States(Enum):
     LIST = 4
     DELETE = 5
 
-# Define a few command handlers. These usually take the two arguments update and
-# context. Error handlers also receive the raised TelegramError object in error.
 def start(update, context):
+    if context.bot_data.get('notes') is None:
+        context.bot_data['notes'] = {}
     return _to_main_menu(update, context, 'Добро пожаловать в 48notes!')
 
-def start_add(update, context):
+def begin_add(update, context):
     context.bot.send_message(chat_id=update.effective_chat.id, text="Введите название заметки")
     return States.ADD_NAME
 
@@ -46,10 +46,12 @@ def add_name(update, context):
     return States.ADD_CONTENT
 
 def add_content(update, context):
-    if context.bot_data.get('notes') is None:
-        context.bot_data['notes'] = {}
-    context.bot_data['notes'][str(len(context.bot_data['notes'])+1)] = {context.user_data['current_note_name']: update.message.text}
-    return _to_main_menu(update, context, 'Заметка добавлена')
+    try:
+        new_note_number = len(context.bot_data['notes'])+1
+        context.bot_data['notes'][str(new_note_number)] = {context.user_data['current_note_name']: update.message.text}
+        return _to_main_menu(update, context, 'Заметка добавлена')
+    except KeyError:
+        return _to_main_menu(update, context, 'Ошибка при добавлении заметки')
 
 def list_notes(update, context):
     try:
@@ -59,7 +61,7 @@ def list_notes(update, context):
     except KeyError:
         return _to_main_menu(update, context, 'Заметок нет')
 
-def start_delete(update, context):
+def begin_delete(update, context):
     try:
         notes = context.bot_data['notes']
         context.bot.send_message(chat_id=update.effective_chat.id, text=_build_notes_list(notes))
@@ -115,9 +117,9 @@ def main():
 
         states = {
             States.MAIN_MENU: [
-                CallbackQueryHandler(start_add, pattern=ADD_COMMAND),
+                CallbackQueryHandler(begin_add, pattern=ADD_COMMAND),
                 CallbackQueryHandler(list_notes, pattern=LIST_COMMAND),
-                CallbackQueryHandler(start_delete, pattern=DELETE_COMMAND),
+                CallbackQueryHandler(begin_delete, pattern=DELETE_COMMAND),
                 MessageHandler(Filters.regex(r"(\d)*"), show_note)
             ],
             States.ADD_NAME: [
