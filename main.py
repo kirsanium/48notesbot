@@ -85,7 +85,10 @@ def delete_note(update, context):
 
 def fix_notes_dict(context, removed_key):
     notes = context.bot_data['notes']
-    upper_bound = len(notes.items()) + 1
+    items_len = len(notes.items())
+    if items_len == 0:
+        return
+    upper_bound = items_len + 1
     for i in range(int(removed_key), upper_bound):
         context.bot_data['notes'][str(i)] = context.bot_data['notes'][str(i+1)]
     del context.bot_data['notes'][str(upper_bound)]
@@ -142,10 +145,12 @@ def main():
 
     dp.add_handler(conv_handler)
 
-    updater.start_webhook(listen="0.0.0.0",
-                          port=int(PORT),
-                          url_path=TOKEN)
-    updater.bot.setWebhook(f"https://{NAME}.herokuapp.com/{TOKEN}")
+    # updater.start_webhook(listen="0.0.0.0",
+    #                       port=int(PORT),
+    #                       url_path=TOKEN)
+    # updater.bot.setWebhook(f"https://{NAME}.herokuapp.com/{TOKEN}")
+    updater.start_polling()
+
     updater.idle()
 
 if __name__ == '__main__':
