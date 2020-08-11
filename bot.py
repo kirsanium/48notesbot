@@ -8,6 +8,7 @@ class States(Enum):
 
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, ConversationHandler, CallbackQueryHandler
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from dbservice import PostgresService
 
 ADD_COMMAND = "/add"
 LIST_COMMAND = "/list"
@@ -22,6 +23,9 @@ KEYBOARD = [
 MAIN_MENU = InlineKeyboardMarkup(KEYBOARD)
 
 class NotesBot:
+    def __init__(self, dbservice=PostgresService()):
+        self.dbservice = dbservice
+
     def _to_main_menu(self, update, context, text):
         context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=MAIN_MENU)
         return States.MAIN_MENU
