@@ -51,6 +51,8 @@ class NotesBot:
     def list_notes(self, update, context):
         try:
             notes = context.bot_data['notes']
+            if not notes:
+                return self._to_main_menu(update, context, 'Заметок нет')
             notes_list = self._build_notes_list(notes)
             return self._to_main_menu(update, context, notes_list)
         except KeyError:
@@ -59,6 +61,8 @@ class NotesBot:
     def begin_delete(self, update, context):
         try:
             notes = context.bot_data['notes']
+            if not notes:
+                return self._to_main_menu(update, context, 'Заметок нет')
             context.bot.send_message(chat_id=update.effective_chat.id, text=self._build_notes_list(notes))
             context.bot.send_message(chat_id=update.effective_chat.id, text="Введите номер заметки, либо `0` для отмены")
             return States.DELETE
@@ -88,11 +92,8 @@ class NotesBot:
 
     def _build_notes_list(self, notes):
         notes_list = ""
-        for i in range(1, len(notes.items()) + 1):
+        for i in range(1, len(notes) + 1):
             notes_list += f"{i}. {list(notes[str(i)].keys())[0]}\n"
-
-        if notes_list == "":
-            notes_list = "Заметок нет"
         return notes_list
 
     def show_note(self, update, context):
