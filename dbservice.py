@@ -12,12 +12,26 @@ class DbService:
         pass
 
 class PostgresSettings:
-    def __init__(self, dbname, user, password="", port="5432"):
+    def __init__(self, dbname="", host="", user="", password="", port="5432"):
         self.dbname = dbname
+        self.host = host
         self.user = user
         self.password = password
         self.port=port
-        self.conn_string = f"dbname={dbname} user={user} password={password} port={port}"
+
+    def get_conn_string(self):
+        conn_string = ""
+        if self.dbname:
+            conn_string += f"dbname={self.dbname}"
+        if self.user:
+            conn_string += f" user={self.user}"
+        if self.password:
+            conn_string += f" password={self.password}"
+        if self.host:
+            conn_string += f" host={self.host}"
+        if self.port:
+            conn_string += f" port={self.port}"
+        return conn_string
 
 import psycopg2
 from psycopg2 import sql
@@ -29,7 +43,7 @@ logger = logging.getLogger(__name__)
 
 class PostgresService:
     def __init__(self, pg_settings):
-        self.connection = psycopg2.connect(pg_settings.conn_string)
+        self.connection = psycopg2.connect(pg_settings.get_conn_string())
         self.notes_table_name = 'notes'
         self.notes_table_sql_id = sql.Identifier(self.notes_table_name)
         if not self.table_exists(self.notes_table_name):

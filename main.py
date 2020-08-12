@@ -15,13 +15,37 @@ load_dotenv()
 
 from bot import NotesBot
 from dbservice import PostgresSettings
+import urllib.parse as urlparse
+import os
+
+url = urlparse.urlparse(os.getenv('DATABASE_URL'))
+dbname = url.path[1:]
+user = url.username
+password = url.password
+host = url.hostname
+port = url.port
 
 def main():
+    db_url = os.getenv('DATABASE_URL')
+    if db_url:
+        dbname = url.path[1:]
+        user = url.username
+        password = url.password
+        host = url.hostname
+        port = url.port
+    else:
+        dbname=os.getenv('DBNAME')
+        user=os.getenv('DBUSER')
+        password=os.getenv('DBPASSWORD')
+        host=os.getenv('DBHOST')
+        port=os.getenv('DBPORT')
+
     pg_settings = PostgresSettings(
-        os.getenv('DBNAME'),
-        os.getenv('DBUSER'),
-        os.getenv('DBPASSWORD'),
-        os.getenv('DBPORT')
+        dbname=dbname,
+        user=user,
+        password=password,
+        host=host,
+        port=port
     )
 
     web_token = os.getenv('WEB_TOKEN')
