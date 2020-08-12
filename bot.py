@@ -9,6 +9,7 @@ class States(Enum):
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, ConversationHandler, CallbackQueryHandler
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from dbservice import PostgresService
+from note import Note
 
 ADD_COMMAND = "/add"
 LIST_COMMAND = "/list"
@@ -31,8 +32,6 @@ class NotesBot:
         return States.MAIN_MENU
     
     def start(self, update, context):
-        if context.bot_data.get('notes') is None:
-            context.bot_data['notes'] = {}
         return self._to_main_menu(update, context, 'Добро пожаловать в 48notes!')
 
     def begin_add(self, update, context):
@@ -45,66 +44,63 @@ class NotesBot:
         return States.ADD_CONTENT
 
     def add_content(self, update, context):
-        try:
-            new_note_number = len(context.bot_data['notes'])+1
-            context.bot_data['notes'][str(new_note_number)] = {context.user_data['current_note_name']: update.message.text}
-            return self._to_main_menu(update, context, 'Заметка добавлена')
-        except KeyError:
-            return self._to_main_menu(update, context, 'Ошибка при добавлении заметки')
+        title = context.user_data['current_note_name']
+        content = update.message.text
+        note = Note(title=title, content=content, id="")
+        self.dbservice.add_note(note)
+        return self._to_main_menu(update, context, 'Заметка добавлена')
 
     def list_notes(self, update, context):
-        try:
-            notes = context.bot_data['notes']
-            if not notes:
-                return self._to_main_menu(update, context, 'Заметок нет')
-            notes_list = self._build_notes_list(notes)
-            return self._to_main_menu(update, context, notes_list)
-        except KeyError:
-            return self._to_main_menu(update, context, 'Заметок нет')
+        notes = self.dbservice.get_notes()
+        notes_list = self._build_notes_list(notes)
+        if notes_list == "":
+            notes_list = "Заметок нет"
+        return self._to_main_menu(update, context, notes_list)
 
     def begin_delete(self, update, context):
-        try:
-            notes = context.bot_data['notes']
-            if not notes:
-                return self._to_main_menu(update, context, 'Заметок нет')
-            context.bot.send_message(chat_id=update.effective_chat.id, text=self._build_notes_list(notes))
-            context.bot.send_message(chat_id=update.effective_chat.id, text="Введите номер заметки, либо `0` для отмены")
-            return States.DELETE
-        except KeyError:
+        notes = list(self.dbservice.get_notes())
+        notes_list = self._build_notes_list(notes)
+        context.user_data["current_delete_dict"] = self._build_notes_dict(notes)
+        if notes_list == "":
             return self._to_main_menu(update, context, 'Заметок нет')
+        context.bot.send_message(chat_id=update.effective_chat.id, text=notes_list)
+        context.bot.send_message(chat_id=update.effective_chat.id, text="Введите номер заметки, либо `0` для отмены")
+        return States.DELETE
 
     def delete_note(self, update, context):
-        key_to_remove = update.message.text
-        if key_to_remove == "0":
+        note_id = update.message.text
+        if note_id == "0":
             return self._to_main_menu(update, context, "Удаление отменено.")
-        try:
-            del context.bot_data['notes'][key_to_remove]
-            self.fix_notes_dict(context, key_to_remove)
-            return self._to_main_menu(update, context, 'Заметка удалена.')
-        except KeyError:
-            return self._to_main_menu(update, context, 'Такой заметки нет!')
 
-    def fix_notes_dict(self, context, removed_key):
-        notes = context.bot_data['notes']
-        items_len = len(notes.items())
-        if items_len == 0:
-            return
-        upper_bound = items_len + 1
-        for i in range(int(removed_key), upper_bound):
-            context.bot_data['notes'][str(i)] = context.bot_data['notes'][str(i+1)]
-        del context.bot_data['notes'][str(upper_bound)]
+        notes = context.user_data["current_delete_dict"]
+        note_id = notes[update.message.text]
+        deleted = self.dbservice.delete_note(note_id)
+        if deleted:
+            return self._to_main_menu(update, context, 'Заметка удалена.')
+        else:
+            return self._to_main_menu(update, context, 'Такой заметки нет!')
 
     def _build_notes_list(self, notes):
         notes_list = ""
-        for i in range(1, len(notes) + 1):
-            notes_list += f"{i}. {list(notes[str(i)].keys())[0]}\n"
+        i = 1
+        for note in notes:
+            notes_list += f"{i}. {note.title}\n"
+            i += 1
         return notes_list
 
+    def _build_notes_dict(self, notes):
+        notes_dict = {}
+        i = 1
+        for note in notes:
+            notes_dict[str(i)] = f"{note.id}"
+            i += 1
+        return notes_dict
+
     def show_note(self, update, context):
-        try:
-            note = list(context.bot_data['notes'][update.message.text].values())[0]
-            return self._to_main_menu(update, context, note)
-        except KeyError:
+        note = self.dbservice.get_note(update.message.text)
+        if note:
+            return self._to_main_menu(update, context, note.content)
+        else:
             return self._to_main_menu(update, context, 'Такой заметки нет!')
     
     def get_states(self):
