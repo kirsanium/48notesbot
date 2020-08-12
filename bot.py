@@ -23,8 +23,8 @@ KEYBOARD = [
 MAIN_MENU = InlineKeyboardMarkup(KEYBOARD)
 
 class NotesBot:
-    def __init__(self, dbservice=PostgresService()):
-        self.dbservice = dbservice
+    def __init__(self, pg_settings):
+        self.dbservice = PostgresService(pg_settings)
 
     def _to_main_menu(self, update, context, text):
         context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=MAIN_MENU)

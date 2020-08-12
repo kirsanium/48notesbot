@@ -13,18 +13,24 @@ logger = logging.getLogger(__name__)
 from dotenv import load_dotenv
 load_dotenv()
 
-# env
-WEB_TOKEN = os.getenv('WEB_TOKEN')
-PORT = int(os.getenv('PORT', 5000))
-WEBHOOK_URL = os.getenv('WEBHOOK_URL').strip('/')
-ENVIRONMENT = os.getenv('ENVIRONMENT', 'dev')
-
 from bot import NotesBot
+from dbservice import PostgresSettings
 
 def main():
-    updater = Updater(WEB_TOKEN, use_context=True)
+    pg_settings = PostgresSettings(
+        os.getenv('DBNAME'),
+        os.getenv('DBUSER'),
+        os.getenv('DBPASSWORD'),
+        os.getenv('DBPORT')
+    )
+
+    web_token = os.getenv('WEB_TOKEN')
+    web_port = int(os.getenv('PORT', 5000))
+    webhook_url = os.getenv('WEBHOOK_URL').strip('/')
+    
+    updater = Updater(web_token, use_context=True)
     dp = updater.dispatcher
-    notes_bot = NotesBot()
+    notes_bot = NotesBot(pg_settings)
     conv_handler = ConversationHandler(
         entry_points = notes_bot.get_entrypoints(),
         states = notes_bot.get_states(),
@@ -33,13 +39,15 @@ def main():
 
     dp.add_handler(conv_handler)
 
-    if ENVIRONMENT == 'dev':
+    environment = os.getenv('ENVIRONMENT', 'dev')
+
+    if environment == 'dev':
         updater.start_polling()
-    elif ENVIRONMENT == 'prod':
+    elif environment == 'prod':
         updater.start_webhook(listen="0.0.0.0",
-                            port=int(PORT),
-                            url_path=WEB_TOKEN)
-        updater.bot.setWebhook(f"{WEBHOOK_URL}/{WEB_TOKEN}")
+                            port=int(web_port),
+                            url_path=web_token)
+        updater.bot.setWebhook(f"{webhook_url}/{web_token}")
     else:
         updater.start_polling()
 
