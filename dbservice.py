@@ -53,8 +53,7 @@ class PostgresService:
         logger.info('get notes')
         with self.connection.cursor(cursor_factory=DictCursor) as cursor:
             cursor.execute(sql.SQL("SELECT * from {}").format(self.notes_table_sql_id))
-            for note in cursor:
-                yield Note(id=note[0], title=note[1], content=note[2])
+            return list(map(lambda note : Note(id=note[0], title=note[1], content=note[2]), cursor))
 
     def get_note(self, id):
         logger.info(f'get note id=`{id}``')

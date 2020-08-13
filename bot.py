@@ -32,6 +32,7 @@ class NotesBot:
         return States.MAIN_MENU
     
     def start(self, update, context):
+        self._fetch_notes(context)
         return self._to_main_menu(update, context, 'Добро пожаловать в 48notes!')
 
     def begin_add(self, update, context):
@@ -48,20 +49,18 @@ class NotesBot:
         content = update.message.text
         note = Note(title=title, content=content, id="")
         self.dbservice.add_note(note)
+        self._fetch_notes(context)
         return self._to_main_menu(update, context, 'Заметка добавлена')
 
     def list_notes(self, update, context):
-        notes = self.dbservice.get_notes()
-        notes_list = self._build_notes_list(notes)
-        if notes_list == "":
+        notes_list = self._get_notes_list(context)
+        if not notes_list:
             notes_list = "Заметок нет"
         return self._to_main_menu(update, context, notes_list)
 
     def begin_delete(self, update, context):
-        notes = list(self.dbservice.get_notes())
-        notes_list = self._build_notes_list(notes)
-        context.user_data["current_delete_dict"] = self._build_notes_dict(notes)
-        if notes_list == "":
+        notes_list = self._get_notes_list(context)
+        if not notes_list:
             return self._to_main_menu(update, context, 'Заметок нет')
         context.bot.send_message(chat_id=update.effective_chat.id, text=notes_list)
         context.bot.send_message(chat_id=update.effective_chat.id, text="Введите номер заметки, либо `0` для отмены")
@@ -72,13 +71,27 @@ class NotesBot:
         if note_id == "0":
             return self._to_main_menu(update, context, "Удаление отменено.")
 
-        notes = context.user_data["current_delete_dict"]
-        note_id = notes[update.message.text]
+        notes_map = self._get_notes_map(context)
+        note_id = notes_map[update.message.text]
         deleted = self.dbservice.delete_note(note_id)
+        self._fetch_notes(context)
         if deleted:
             return self._to_main_menu(update, context, 'Заметка удалена.')
         else:
             return self._to_main_menu(update, context, 'Такой заметки нет!')
+
+    def _get_notes_list(self, context):
+        notes = self._fetch_notes(context)
+        notes_list = self._build_notes_list(notes)
+        return notes_list
+
+    def _fetch_notes(self, context):
+        notes = self.dbservice.get_notes()
+        context.user_data["notes_map"] = self._build_notes_mapping(notes)
+        return notes
+
+    def _get_notes_map(self, context):
+        return context.user_data["notes_map"]
 
     def _build_notes_list(self, notes):
         notes_list = ""
@@ -88,7 +101,7 @@ class NotesBot:
             i += 1
         return notes_list
 
-    def _build_notes_dict(self, notes):
+    def _build_notes_mapping(self, notes):
         notes_dict = {}
         i = 1
         for note in notes:
@@ -97,7 +110,9 @@ class NotesBot:
         return notes_dict
 
     def show_note(self, update, context):
-        note = self.dbservice.get_note(update.message.text)
+        notes_map = self._get_notes_map(context)
+        note_id = notes_map[update.message.text]
+        note = self.dbservice.get_note(note_id)
         if note:
             return self._to_main_menu(update, context, note.content)
         else:
