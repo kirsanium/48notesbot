@@ -5,6 +5,8 @@ class States(Enum):
     ADD_CONTENT = 3
     LIST = 4
     DELETE = 5
+    START_EDIT = 6
+    EDIT = 7
 
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, ConversationHandler, CallbackQueryHandler
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
@@ -14,9 +16,11 @@ from note import Note
 ADD_COMMAND = "/add"
 LIST_COMMAND = "/list"
 DELETE_COMMAND = "/delete"
+EDIT_COMMAND = "/edit"
 
 KEYBOARD = [
     [InlineKeyboardButton("Добавить заметку", callback_data=ADD_COMMAND)],
+    [InlineKeyboardButton("Редактировать заметку", callback_data=EDIT_COMMAND)],
     [InlineKeyboardButton("Список заметок", callback_data=LIST_COMMAND)],
     [InlineKeyboardButton("Удалить заметку", callback_data=DELETE_COMMAND)]
 ]
@@ -59,26 +63,57 @@ class NotesBot:
         return self._to_main_menu(update, context, notes_list)
 
     def begin_delete(self, update, context):
-        notes_list = self._get_notes_list(context)
-        if not notes_list:
-            return self._to_main_menu(update, context, 'Заметок нет')
-        context.bot.send_message(chat_id=update.effective_chat.id, text=notes_list)
-        context.bot.send_message(chat_id=update.effective_chat.id, text="Введите номер заметки, либо `0` для отмены")
+        self._ask_to_choose_note(update, context)
         return States.DELETE
 
     def delete_note(self, update, context):
-        note_id = update.message.text
-        if note_id == "0":
+        note_num = update.message.text
+        if note_num == "0":
             return self._to_main_menu(update, context, "Удаление отменено.")
-
         notes_map = self._get_notes_map(context)
-        note_id = notes_map[update.message.text]
+        note_id = notes_map.get(note_num)
+        if not note_id:
+            return self._to_main_menu(update, context, 'Такой заметки нет!')
         deleted = self.dbservice.delete_note(note_id)
         self._fetch_notes(context)
         if deleted:
             return self._to_main_menu(update, context, 'Заметка удалена.')
         else:
             return self._to_main_menu(update, context, 'Такой заметки нет!')
+
+    def begin_edit(self, update, context):
+        self._ask_to_choose_note(update, context)
+        return States.START_EDIT
+
+    def ask_for_new_content(self, update, context):
+        note_num = update.message.text
+        if note_num == "0":
+            return self._to_main_menu(update, context, "Редактирование отменено.")
+        notes_map = self._get_notes_map(context)
+        note_id = notes_map.get(note_num)
+        if not note_id:
+            return self._to_main_menu(update, context, 'Такой заметки нет!')
+
+        context.user_data['edit_note_id'] = note_id
+        note = self.dbservice.get_note(note_id)
+        context.bot.send_message(chat_id=update.effective_chat.id, text=note.content)
+        context.bot.send_message(chat_id=update.effective_chat.id, text='Введите новое содержание заметки')
+        return States.EDIT
+
+    def edit_note(self, update, context):
+        note_id = context.user_data['edit_note_id']
+        edited = self.dbservice.edit_note(note_id, update.message.text)
+        if edited:
+            return self._to_main_menu(update, context, 'Заметка отредактирована')
+        else:
+            return self._to_main_menu(update, context, 'Такой заметки нет!')
+
+    def _ask_to_choose_note(self, update, context):
+        notes_list = self._get_notes_list(context)
+        if not notes_list:
+            return self._to_main_menu(update, context, 'Заметок нет')
+        context.bot.send_message(chat_id=update.effective_chat.id, text=notes_list)
+        context.bot.send_message(chat_id=update.effective_chat.id, text="Введите номер заметки, либо `0` для отмены")
 
     def _get_notes_list(self, context):
         notes = self._fetch_notes(context)
@@ -124,6 +159,7 @@ class NotesBot:
                 CallbackQueryHandler(self.begin_add, pattern=ADD_COMMAND),
                 CallbackQueryHandler(self.list_notes, pattern=LIST_COMMAND),
                 CallbackQueryHandler(self.begin_delete, pattern=DELETE_COMMAND),
+                CallbackQueryHandler(self.begin_edit, pattern=EDIT_COMMAND),
                 MessageHandler(Filters.regex(r"(\d)*"), self.show_note)
             ],
             States.ADD_NAME: [
@@ -134,6 +170,12 @@ class NotesBot:
             ],
             States.DELETE: [
                 MessageHandler(Filters.regex(r"(\d)*"), self.delete_note)
+            ],
+            States.START_EDIT: [
+                MessageHandler(Filters.regex(r"(\d)*"), self.ask_for_new_content)
+            ],
+            States.EDIT: [
+                MessageHandler(Filters.text, self.edit_note)
             ]
         }
 
