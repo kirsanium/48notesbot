@@ -79,7 +79,13 @@ class PostgresService:
             cursor.execute(sql.SQL("DELETE FROM {} WHERE id = %s").format(self.notes_table_sql_id), (id, ))
             deleted = cursor.rowcount
             self.connection.commit() 
-            return deleted      
+            return deleted
+
+    def edit_note(self, id, new_content):
+        logger.info(f'edit note id =`{id}`')
+        with self.connection.cursor() as cursor:
+            cursor.execute(sql.SQL("UPDATE {} SET content = %s WHERE id = %s").format(self.notes_table_sql_id), (new_content, id, ))
+            self.connection.commit()      
 
     def create_notes_table(self):
         logger.info('create notes table')
